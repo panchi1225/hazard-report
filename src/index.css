@@ -1,0 +1,7 @@
+@import "tailwindcss";
+
+@layer base {
+  html, body, #root {
+    @apply min-h-[100dvh] m-0 p-0;
+  }
+}

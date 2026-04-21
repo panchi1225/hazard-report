@@ -1,0 +1,6 @@
+{
+  "name": "ヒヤリ・ハット報告アプリ",
+  "description": "社内向けのヒヤリ・ハット報告アプリです。年配の作業員でも直感的に使えるシンプルなUIを備えています。",
+  "requestFramePermissions": [],
+  "majorCapabilities": []
+}
