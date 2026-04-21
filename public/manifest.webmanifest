@@ -1,0 +1,21 @@
+{
+  "name": "ヒヤリ・ハット報告アプリ",
+  "short_name": "ヒヤリ・ハット",
+  "start_url": "/hazard-report/",
+  "scope": "/hazard-report/",
+  "display": "standalone",
+  "background_color": "#f9fafb",
+  "theme_color": "#1e40af",
+  "icons": [
+    {
+      "src": "/hazard-report/apple-touch-icon.png",
+      "sizes": "180x180",
+      "type": "image/png"
+    },
+    {
+      "src": "/hazard-report/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
