@@ -1,30 +1,15 @@
-/**
- * Firebase 差し替えポイント
- * 
- * 将来的に Firebase に移行する場合は、ここに Firebase の初期化コードを記述します。
- * 
- * 例:
- * import { initializeApp } from 'firebase/app';
- * import { getFirestore } from 'firebase/firestore';
- * import { getAuth } from 'firebase/auth';
- * 
- * const firebaseConfig = {
- *   apiKey: "YOUR_API_KEY",
- *   authDomain: "YOUR_AUTH_DOMAIN",
- *   projectId: "YOUR_PROJECT_ID",
- *   storageBucket: "YOUR_STORAGE_BUCKET",
- *   messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
- *   appId: "YOUR_APP_ID"
- * };
- * 
- * const app = initializeApp(firebaseConfig);
- * export const db = getFirestore(app);
- * export const auth = getAuth(app);
- * 
- * 必要な Firestore コレクション:
- * - employees (社員マスタ)
- * - sites (現場マスタ)
- * - reports (報告データ)
- */
+import { initializeApp } from 'firebase/app';
+import { getFirestore } from 'firebase/firestore';
 
-export const isFirebaseEnabled = false;
+const firebaseConfig = {
+  apiKey: 'AIzaSyDebtRNnwt3gxIQOxpCoBC1TBhDu_EaFmc',
+  authDomain: 'matsuura-hazard-report.firebaseapp.com',
+  projectId: 'matsuura-hazard-report',
+  storageBucket: 'matsuura-hazard-report.firebasestorage.app',
+  messagingSenderId: '228012777921',
+  appId: '1:228012777921:web:461519397cd25177860f40',
+};
+
+export const app = initializeApp(firebaseConfig);
+export const db = getFirestore(app);
+export const isFirebaseEnabled = true;
