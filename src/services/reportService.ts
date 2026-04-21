@@ -1,69 +1,95 @@
 import { Report } from '../types';
-import { LS_KEY_REPORTS } from '../utils/constants';
-import { initialReports } from './mockData';
-import { storage } from '../utils/storage';
+import { db, isFirebaseEnabled } from './firebaseConfig';
+import {
+  collection,
+  getDocs,
+  getDoc,
+  addDoc,
+  updateDoc,
+  doc,
+} from 'firebase/firestore';
 
-// --- Firebase 差し替えポイント ---
-// Firebase移行時は、これらの関数を Firestore の getDocs, addDoc, updateDoc に書き換えます。
-// コレクション名: 'reports'
+const REPORTS_COLLECTION = 'reports';
 
-const getReportsFromLS = (): Report[] => {
-  const data = storage.getItem(LS_KEY_REPORTS);
-  if (data) return JSON.parse(data);
-  storage.setItem(LS_KEY_REPORTS, JSON.stringify(initialReports));
-  return initialReports;
-};
+const mapReport = (id: string, data: any): Report => ({
+  id,
+  incidentDate: data.incidentDate ?? '',
+  siteId: data.siteId ?? '',
+  siteName: data.siteName ?? '',
+  reporterId: data.reporterId ?? '',
+  reporterName: data.reporterName ?? '',
+  content: data.content ?? '',
+  createdByUserId: data.createdByUserId ?? '',
+  createdByUserName: data.createdByUserName ?? '',
+  createdAt: data.createdAt ?? '',
+  updatedAt: data.updatedAt ?? '',
+  checked: data.checked ?? false,
+  checkedAt: data.checkedAt,
+  checkedBy: data.checkedBy,
+  deletedFlag: data.deletedFlag ?? false,
+});
 
 export const reportService = {
   getReports: async (): Promise<Report[]> => {
-    return getReportsFromLS().filter(r => !r.deletedFlag).sort((a, b) => {
-      // 現場別優先、その中で新しい順
-      if (a.siteId !== b.siteId) {
-        return a.siteName.localeCompare(b.siteName);
-      }
-      return new Date(b.incidentDate).getTime() - new Date(a.incidentDate).getTime();
-    });
-  },
-  
-  getReportById: async (id: string): Promise<Report | undefined> => {
-    return getReportsFromLS().find(r => r.id === id && !r.deletedFlag);
+    if (!isFirebaseEnabled) return [];
+    const snapshot = await getDocs(collection(db, REPORTS_COLLECTION));
+    return snapshot.docs
+      .map((d) => mapReport(d.id, d.data()))
+      .filter((r) => !r.deletedFlag)
+      .sort((a, b) => {
+        if (a.siteId !== b.siteId) {
+          return a.siteName.localeCompare(b.siteName);
+        }
+        return new Date(b.incidentDate).getTime() - new Date(a.incidentDate).getTime();
+      });
   },
 
-  addReport: async (report: Omit<Report, 'id' | 'createdAt' | 'updatedAt' | 'checked' | 'deletedFlag'>): Promise<void> => {
-    const reports = getReportsFromLS();
+  getReportById: async (id: string): Promise<Report | undefined> => {
+    if (!isFirebaseEnabled) return undefined;
+    const snapshot = await getDoc(doc(db, REPORTS_COLLECTION, id));
+    if (!snapshot.exists()) return undefined;
+    const report = mapReport(snapshot.id, snapshot.data());
+    if (report.deletedFlag) return undefined;
+    return report;
+  },
+
+  addReport: async (
+    report: Omit<Report, 'id' | 'createdAt' | 'updatedAt' | 'checked' | 'deletedFlag'>
+  ): Promise<void> => {
+    if (!isFirebaseEnabled) return;
     const now = new Date().toISOString();
-    const newReport: Report = {
+    await addDoc(collection(db, REPORTS_COLLECTION), {
       ...report,
-      id: `rep_${Date.now()}`,
       createdAt: now,
       updatedAt: now,
       checked: false,
       deletedFlag: false,
-    };
-    storage.setItem(LS_KEY_REPORTS, JSON.stringify([...reports, newReport]));
+    });
   },
 
   updateReport: async (id: string, updates: Partial<Report>): Promise<void> => {
-    const reports = getReportsFromLS();
-    const updated = reports.map(r => r.id === id ? { ...r, ...updates, updatedAt: new Date().toISOString() } : r);
-    storage.setItem(LS_KEY_REPORTS, JSON.stringify(updated));
+    if (!isFirebaseEnabled) return;
+    await updateDoc(doc(db, REPORTS_COLLECTION, id), {
+      ...updates,
+      updatedAt: new Date().toISOString(),
+    });
   },
 
   deleteReport: async (id: string): Promise<void> => {
-    const reports = getReportsFromLS();
-    const updated = reports.map(r => r.id === id ? { ...r, deletedFlag: true, updatedAt: new Date().toISOString() } : r);
-    storage.setItem(LS_KEY_REPORTS, JSON.stringify(updated));
+    if (!isFirebaseEnabled) return;
+    await updateDoc(doc(db, REPORTS_COLLECTION, id), {
+      deletedFlag: true,
+      updatedAt: new Date().toISOString(),
+    });
   },
 
   checkReport: async (id: string, adminId: string, checked: boolean): Promise<void> => {
-    const reports = getReportsFromLS();
-    const updated = reports.map(r => r.id === id ? { 
-      ...r, 
-      checked, 
+    if (!isFirebaseEnabled) return;
+    await updateDoc(doc(db, REPORTS_COLLECTION, id), {
+      checked,
       checkedAt: checked ? new Date().toISOString() : undefined,
       checkedBy: checked ? adminId : undefined,
-      updatedAt: new Date().toISOString() 
-    } : r);
-    storage.setItem(LS_KEY_REPORTS, JSON.stringify(updated));
-  }
+      updatedAt: new Date().toISOString(),
+    });
+  },
 };
