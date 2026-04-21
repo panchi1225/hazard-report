@@ -5,7 +5,7 @@ import { masterService } from '../services/masterService';
 import { Employee, CompanyType } from '../types';
 import { Button } from '../components/Button';
 import { APP_NAME_JA, COMMON_USER_PASSWORD, ADMIN_PASSWORD } from '../utils/constants';
-import { ShieldAlert, User, Lock, Shield, UserPlus, Building2 } from 'lucide-react';
+import { ShieldAlert, User, Lock, Shield, UserPlus } from 'lucide-react';
 
 export const Login: React.FC = () => {
   const [isAdminMode, setIsAdminMode] = useState(false);
@@ -127,23 +127,18 @@ export const Login: React.FC = () => {
                   <label className="block text-gray-700 font-medium mb-2 text-lg">
                     会社を選択
                   </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <Building2 className="text-gray-400" size={20} />
-                    </div>
-                    <select
-                      className="w-full pl-11 pr-4 py-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-white font-medium"
-                      value={selectedCompanyType}
-                      onChange={(e) => {
-                        setSelectedCompanyType(e.target.value as CompanyType);
-                        setSelectedEmployeeId(''); // 会社を変えたら名前をリセット
-                      }}
-                    >
-                      <option value="">-- 会社を選んでください --</option>
-                      <option value="matsuura">松浦建設株式会社</option>
-                      <option value="partner">協力会社</option>
-                    </select>
-                  </div>
+                  <select
+                    className="w-full px-4 py-4 border-2 border-gray-300 rounded-lg text-lg focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-white font-medium"
+                    value={selectedCompanyType}
+                    onChange={(e) => {
+                      setSelectedCompanyType(e.target.value as CompanyType);
+                      setSelectedEmployeeId(''); // 会社を変えたら名前をリセット
+                    }}
+                  >
+                    <option value="">-- 会社を選んでください --</option>
+                    <option value="matsuura">松浦建設株式会社</option>
+                    <option value="partner">協力会社</option>
+                  </select>
                 </div>
 
                 <div>
