@@ -1,85 +1,106 @@
 import { Employee, Site, CompanyType } from '../types';
-import { LS_KEY_EMPLOYEES, LS_KEY_SITES } from '../utils/constants';
-import { initialEmployees, initialSites } from './mockData';
-import { storage } from '../utils/storage';
+import { db, isFirebaseEnabled } from './firebaseConfig';
+import {
+  collection,
+  getDocs,
+  addDoc,
+  updateDoc,
+  deleteDoc,
+  doc,
+} from 'firebase/firestore';
 
-// --- Firebase 差し替えポイント ---
-// Firebase移行時は、これらの関数を Firestore の getDocs, addDoc, updateDoc, deleteDoc に書き換えます。
-// コレクション名: 'employees', 'sites'
+const EMPLOYEES_COLLECTION = 'employees';
+const SITES_COLLECTION = 'sites';
 
-const getEmployeesFromLS = (): Employee[] => {
-  const data = storage.getItem(LS_KEY_EMPLOYEES);
-  if (data) {
-    const arr = JSON.parse(data);
-    return arr.map((e: any) => ({
-      ...e,
-      companyType: e.companyType || 'partner'
-    }));
-  }
-  storage.setItem(LS_KEY_EMPLOYEES, JSON.stringify(initialEmployees));
-  return initialEmployees;
-};
+const mapEmployee = (id: string, data: any): Employee => ({
+  id,
+  name: data.name ?? '',
+  companyType: (data.companyType as CompanyType) || 'partner',
+  active: data.active ?? true,
+});
 
-const getSitesFromLS = (): Site[] => {
-  const data = storage.getItem(LS_KEY_SITES);
-  if (data) return JSON.parse(data);
-  storage.setItem(LS_KEY_SITES, JSON.stringify(initialSites));
-  return initialSites;
-};
+const mapSite = (id: string, data: any): Site => ({
+  id,
+  name: data.name ?? '',
+  active: data.active ?? true,
+});
 
 export const masterService = {
   getEmployees: async (): Promise<Employee[]> => {
-    return getEmployeesFromLS().filter(e => e.active);
+    if (!isFirebaseEnabled) return [];
+    const snapshot = await getDocs(collection(db, EMPLOYEES_COLLECTION));
+    return snapshot.docs
+      .map((d) => mapEmployee(d.id, d.data()))
+      .filter((e) => e.active);
   },
+
   getAllEmployees: async (): Promise<Employee[]> => {
-    return getEmployeesFromLS();
+    if (!isFirebaseEnabled) return [];
+    const snapshot = await getDocs(collection(db, EMPLOYEES_COLLECTION));
+    return snapshot.docs.map((d) => mapEmployee(d.id, d.data()));
   },
+
   addEmployee: async (name: string, companyType: CompanyType): Promise<Employee[]> => {
-    const employees = getEmployeesFromLS();
-    const newEmployee: Employee = {
-      id: `emp_${Date.now()}`,
+    if (!isFirebaseEnabled) return [];
+    await addDoc(collection(db, EMPLOYEES_COLLECTION), {
       name,
       companyType,
       active: true,
-    };
-    const updated = [...employees, newEmployee];
-    storage.setItem(LS_KEY_EMPLOYEES, JSON.stringify(updated));
-    return updated;
+    });
+    return await masterService.getAllEmployees();
   },
-  updateEmployee: async (id: string, name: string, companyType: CompanyType, active: boolean): Promise<void> => {
-    const employees = getEmployeesFromLS();
-    const updated = employees.map(e => e.id === id ? { ...e, name, companyType, active } : e);
-    storage.setItem(LS_KEY_EMPLOYEES, JSON.stringify(updated));
+
+  updateEmployee: async (
+    id: string,
+    name: string,
+    companyType: CompanyType,
+    active: boolean
+  ): Promise<void> => {
+    if (!isFirebaseEnabled) return;
+    await updateDoc(doc(db, EMPLOYEES_COLLECTION, id), {
+      name,
+      companyType,
+      active,
+    });
   },
+
   deleteEmployee: async (id: string): Promise<void> => {
-    const employees = getEmployeesFromLS();
-    const updated = employees.filter(e => e.id !== id);
-    storage.setItem(LS_KEY_EMPLOYEES, JSON.stringify(updated));
+    if (!isFirebaseEnabled) return;
+    await deleteDoc(doc(db, EMPLOYEES_COLLECTION, id));
   },
 
   getSites: async (): Promise<Site[]> => {
-    return getSitesFromLS().filter(s => s.active);
+    if (!isFirebaseEnabled) return [];
+    const snapshot = await getDocs(collection(db, SITES_COLLECTION));
+    return snapshot.docs
+      .map((d) => mapSite(d.id, d.data()))
+      .filter((s) => s.active);
   },
+
   getAllSites: async (): Promise<Site[]> => {
-    return getSitesFromLS();
+    if (!isFirebaseEnabled) return [];
+    const snapshot = await getDocs(collection(db, SITES_COLLECTION));
+    return snapshot.docs.map((d) => mapSite(d.id, d.data()));
   },
+
   addSite: async (name: string): Promise<void> => {
-    const sites = getSitesFromLS();
-    const newSite: Site = {
-      id: `site_${Date.now()}`,
+    if (!isFirebaseEnabled) return;
+    await addDoc(collection(db, SITES_COLLECTION), {
       name,
       active: true,
-    };
-    storage.setItem(LS_KEY_SITES, JSON.stringify([...sites, newSite]));
+    });
   },
+
   updateSite: async (id: string, name: string, active: boolean): Promise<void> => {
-    const sites = getSitesFromLS();
-    const updated = sites.map(s => s.id === id ? { ...s, name, active } : s);
-    storage.setItem(LS_KEY_SITES, JSON.stringify(updated));
+    if (!isFirebaseEnabled) return;
+    await updateDoc(doc(db, SITES_COLLECTION, id), {
+      name,
+      active,
+    });
   },
+
   deleteSite: async (id: string): Promise<void> => {
-    const sites = getSitesFromLS();
-    const updated = sites.filter(s => s.id !== id);
-    storage.setItem(LS_KEY_SITES, JSON.stringify(updated));
+    if (!isFirebaseEnabled) return;
+    await deleteDoc(doc(db, SITES_COLLECTION, id));
   },
 };
