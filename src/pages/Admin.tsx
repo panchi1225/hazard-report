@@ -150,8 +150,12 @@ export const Admin: React.FC = () => {
     printReports(filteredReports, 'ヒヤリ・ハット報告一覧');
   };
 
-  // 表示する会社のみ抽出
-  const displayedEmployees = employees.filter(emp => emp.companyType === displayCompanyType);
+  // 表示する会社のみ抽出（名前順）
+  const displayedEmployees = useMemo(() => {
+    return employees
+      .filter(emp => emp.companyType === displayCompanyType)
+      .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  }, [employees, displayCompanyType]);
   const companyStyles = {
     matsuura: {
       bg: 'bg-blue-50',

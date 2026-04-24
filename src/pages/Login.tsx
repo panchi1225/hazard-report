@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
 import { masterService } from '../services/masterService';
@@ -29,8 +29,12 @@ export const Login: React.FC = () => {
     loadEmployees();
   }, []);
 
-  // 選択された会社に該当する社員のみを抽出
-  const filteredEmployees = employees.filter(emp => emp.companyType === selectedCompanyType);
+  // 選択された会社に該当する社員のみを抽出（名前順）
+  const filteredEmployees = useMemo(() => {
+    return employees
+      .filter(emp => emp.companyType === selectedCompanyType)
+      .sort((a, b) => a.name.localeCompare(b.name, 'ja'));
+  }, [employees, selectedCompanyType]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
