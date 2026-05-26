@@ -12,6 +12,8 @@ export const ReportForm: React.FC = () => {
   const MAX_PHOTO_BYTES = 450 * 1024; // Firestore 1MiB制限を考慮し、他フィールド分を十分確保
   const MAX_WIDTH = 1600;
   const MAX_HEIGHT = 1600;
+  const MIN_WIDTH = 720;
+  const MIN_HEIGHT = 720;
   const { id } = useParams<{ id: string }>();
   const isEditMode = !!id;
   const { user } = useAuth();
@@ -132,22 +134,39 @@ export const ReportForm: React.FC = () => {
 
   const compressImage = async (file: File): Promise<string> => {
     const img = await loadImage(file);
-    const scale = Math.min(1, MAX_WIDTH / img.width, MAX_HEIGHT / img.height);
-    const width = Math.max(1, Math.floor(img.width * scale));
-    const height = Math.max(1, Math.floor(img.height * scale));
+    const initialScale = Math.min(1, MAX_WIDTH / img.width, MAX_HEIGHT / img.height);
+    let width = Math.max(1, Math.floor(img.width * initialScale));
+    let height = Math.max(1, Math.floor(img.height * initialScale));
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
     const ctx = canvas.getContext('2d');
     if (!ctx) throw new Error('画像処理に失敗しました');
-    ctx.drawImage(img, 0, 0, width, height);
 
-    let quality = 0.9;
-    let dataUrl = canvasToDataUrl(canvas, quality);
-    while (getUtf8Bytes(dataUrl) > MAX_PHOTO_BYTES && quality > 0.45) {
-      quality -= 0.1;
-      dataUrl = canvasToDataUrl(canvas, quality);
+    let dataUrl = '';
+    let pass = 0;
+
+    while (pass < 6) {
+      canvas.width = width;
+      canvas.height = height;
+      ctx.clearRect(0, 0, width, height);
+      ctx.drawImage(img, 0, 0, width, height);
+
+      for (const quality of [0.82, 0.72, 0.62, 0.52, 0.42, 0.32, 0.25]) {
+        dataUrl = canvasToDataUrl(canvas, quality);
+        if (getUtf8Bytes(dataUrl) <= MAX_PHOTO_BYTES) {
+          return dataUrl;
+        }
+      }
+
+      const nextWidth = Math.floor(width * 0.8);
+      const nextHeight = Math.floor(height * 0.8);
+      if (nextWidth < MIN_WIDTH || nextHeight < MIN_HEIGHT) {
+        break;
+      }
+      width = nextWidth;
+      height = nextHeight;
+      pass += 1;
     }
+
     return dataUrl;
   };
 
@@ -166,7 +185,7 @@ export const ReportForm: React.FC = () => {
     try {
       const compressedDataUrl = await compressImage(file);
       if (getUtf8Bytes(compressedDataUrl) > MAX_PHOTO_BYTES) {
-        setError('写真サイズが大きすぎます。もう少し近づいて撮影するか、別の写真を選択してください。');
+        setError('写真サイズが大きいため添付できませんでした。別の写真を選択してください。');
         setPhotoDataUrl('');
         e.target.value = '';
         return;
