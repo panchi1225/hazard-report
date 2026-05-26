@@ -9,7 +9,7 @@ import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const ReportForm: React.FC = () => {
-  const MAX_PHOTO_BYTES = 700 * 1024; // Firestore 1MiB制限を考慮して余裕を持たせる
+  const MAX_PHOTO_BYTES = 450 * 1024; // Firestore 1MiB制限を考慮し、他フィールド分を十分確保
   const MAX_WIDTH = 1600;
   const MAX_HEIGHT = 1600;
   const { id } = useParams<{ id: string }>();
@@ -126,6 +126,10 @@ export const ReportForm: React.FC = () => {
     return canvas.toDataURL('image/jpeg', quality);
   };
 
+  const getUtf8Bytes = (value: string): number => {
+    return new Blob([value]).size;
+  };
+
   const compressImage = async (file: File): Promise<string> => {
     const img = await loadImage(file);
     const scale = Math.min(1, MAX_WIDTH / img.width, MAX_HEIGHT / img.height);
@@ -140,7 +144,7 @@ export const ReportForm: React.FC = () => {
 
     let quality = 0.9;
     let dataUrl = canvasToDataUrl(canvas, quality);
-    while (dataUrl.length > MAX_PHOTO_BYTES * 1.37 && quality > 0.45) {
+    while (getUtf8Bytes(dataUrl) > MAX_PHOTO_BYTES && quality > 0.45) {
       quality -= 0.1;
       dataUrl = canvasToDataUrl(canvas, quality);
     }
@@ -161,7 +165,7 @@ export const ReportForm: React.FC = () => {
     setError('');
     try {
       const compressedDataUrl = await compressImage(file);
-      if (compressedDataUrl.length > MAX_PHOTO_BYTES * 1.37) {
+      if (getUtf8Bytes(compressedDataUrl) > MAX_PHOTO_BYTES) {
         setError('写真サイズが大きすぎます。もう少し近づいて撮影するか、別の写真を選択してください。');
         setPhotoDataUrl('');
         e.target.value = '';
