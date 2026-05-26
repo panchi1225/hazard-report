@@ -138,6 +138,19 @@ export const ReportDetail: React.FC = () => {
             {report.content}
           </div>
         </div>
+
+        {report.photoDataUrl && (
+          <div>
+            <div className="text-sm text-gray-500 mb-2">添付写真</div>
+            <a href={report.photoDataUrl} target="_blank" rel="noopener noreferrer">
+              <img
+                src={report.photoDataUrl}
+                alt="報告の添付写真"
+                className="w-full max-h-[420px] object-contain rounded-lg border border-gray-200 bg-gray-50"
+              />
+            </a>
+          </div>
+        )}
         
         <div className="text-xs text-gray-400 text-right">
           登録者: {displayCreatorName}
