@@ -19,6 +19,7 @@ export const ReportForm: React.FC = () => {
   const [incidentDate, setIncidentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [siteId, setSiteId] = useState('');
   const [content, setContent] = useState('');
+  const [photoDataUrl, setPhotoDataUrl] = useState('');
   
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +42,7 @@ export const ReportForm: React.FC = () => {
           setIncidentDate(report.incidentDate);
           setSiteId(report.siteId);
           setContent(report.content);
+          setPhotoDataUrl(report.photoDataUrl || '');
         } else {
           navigate('/reports');
         }
@@ -78,6 +80,7 @@ export const ReportForm: React.FC = () => {
           siteId,
           siteName: site?.name || '',
           content,
+          photoDataUrl,
         });
       } else {
         await reportService.addReport({
@@ -87,6 +90,7 @@ export const ReportForm: React.FC = () => {
           reporterId: user?.id || '',       // reporterとcreatorは同じ情報を入れる
           reporterName: user?.name || '',   
           content,
+          photoDataUrl,
           createdByUserId: user?.id || '',
           createdByUserName: user?.name || '',
         });
@@ -97,6 +101,24 @@ export const ReportForm: React.FC = () => {
       setError('保存に失敗しました');
       setIsSubmitting(false);
     }
+  };
+
+  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setPhotoDataUrl('');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setError('画像ファイルを選択してください');
+      e.target.value = '';
+      return;
+    }
+    const reader = new FileReader();
+    reader.onload = () => {
+      setPhotoDataUrl(typeof reader.result === 'string' ? reader.result : '');
+    };
+    reader.readAsDataURL(file);
   };
 
   if (isLoading) {
@@ -136,6 +158,10 @@ export const ReportForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-8">
+        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-sm text-yellow-900">
+          必須項目（発生日・現場・内容）は必ず入力してください。状況がわかる写真を添付できる場合は、できるだけ添付をお願いします。
+        </div>
+
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex justify-between items-center">
           <div className="text-blue-800 font-bold">登録者：</div>
           <div className="text-xl font-bold text-blue-900">{user?.name}</div>
@@ -179,6 +205,26 @@ export const ReportForm: React.FC = () => {
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
+        </div>
+
+        <div>
+          <label className="block text-gray-800 font-bold mb-2 text-lg">
+            4. 写真添付（任意）
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoChange}
+            className="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
+          />
+          <p className="text-sm text-gray-500 mt-2">
+            危険箇所や状況が伝わる写真があれば添付してください。
+          </p>
+          {photoDataUrl && (
+            <div className="mt-4">
+              <img src={photoDataUrl} alt="添付予定の写真" className="max-h-64 rounded-lg border border-gray-200 object-contain bg-gray-50" />
+            </div>
+          )}
         </div>
 
         {error && (

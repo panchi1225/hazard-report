@@ -29,6 +29,7 @@ export interface Report {
   reporterId: string;
   reporterName: string;
   content: string;
+  photoDataUrl?: string;
   createdByUserId: string;
   createdByUserName: string;
   createdAt: string; // ISO string
