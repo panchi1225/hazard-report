@@ -19,6 +19,7 @@ const mapReport = (id: string, data: any): Report => ({
   reporterId: data.reporterId ?? '',
   reporterName: data.reporterName ?? '',
   content: data.content ?? '',
+  photoDataUrl: data.photoDataUrl,
   createdByUserId: data.createdByUserId ?? '',
   createdByUserName: data.createdByUserName ?? '',
   createdAt: data.createdAt ?? '',
