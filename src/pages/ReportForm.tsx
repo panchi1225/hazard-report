@@ -9,6 +9,9 @@ import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const ReportForm: React.FC = () => {
+  const MAX_PHOTO_BYTES = 450 * 1024; // Firestore 1MiB制限を考慮し、他フィールド分を十分確保
+  const MAX_WIDTH = 1600;
+  const MAX_HEIGHT = 1600;
   const { id } = useParams<{ id: string }>();
   const isEditMode = !!id;
   const { user } = useAuth();
@@ -103,7 +106,52 @@ export const ReportForm: React.FC = () => {
     }
   };
 
-  const handlePhotoChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const loadImage = (file: File): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('画像の読み込みに失敗しました'));
+      };
+      img.src = objectUrl;
+    });
+  };
+
+  const canvasToDataUrl = (canvas: HTMLCanvasElement, quality: number): string => {
+    return canvas.toDataURL('image/jpeg', quality);
+  };
+
+  const getUtf8Bytes = (value: string): number => {
+    return new Blob([value]).size;
+  };
+
+  const compressImage = async (file: File): Promise<string> => {
+    const img = await loadImage(file);
+    const scale = Math.min(1, MAX_WIDTH / img.width, MAX_HEIGHT / img.height);
+    const width = Math.max(1, Math.floor(img.width * scale));
+    const height = Math.max(1, Math.floor(img.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('画像処理に失敗しました');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    let quality = 0.9;
+    let dataUrl = canvasToDataUrl(canvas, quality);
+    while (getUtf8Bytes(dataUrl) > MAX_PHOTO_BYTES && quality > 0.45) {
+      quality -= 0.1;
+      dataUrl = canvasToDataUrl(canvas, quality);
+    }
+    return dataUrl;
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) {
       setPhotoDataUrl('');
@@ -114,11 +162,21 @@ export const ReportForm: React.FC = () => {
       e.target.value = '';
       return;
     }
-    const reader = new FileReader();
-    reader.onload = () => {
-      setPhotoDataUrl(typeof reader.result === 'string' ? reader.result : '');
-    };
-    reader.readAsDataURL(file);
+    setError('');
+    try {
+      const compressedDataUrl = await compressImage(file);
+      if (getUtf8Bytes(compressedDataUrl) > MAX_PHOTO_BYTES) {
+        setError('写真サイズが大きすぎます。もう少し近づいて撮影するか、別の写真を選択してください。');
+        setPhotoDataUrl('');
+        e.target.value = '';
+        return;
+      }
+      setPhotoDataUrl(compressedDataUrl);
+    } catch (error) {
+      setError('画像の処理に失敗しました。別の写真でお試しください。');
+      setPhotoDataUrl('');
+      e.target.value = '';
+    }
   };
 
   if (isLoading) {
