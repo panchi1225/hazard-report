@@ -9,6 +9,9 @@ import { ArrowLeft, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 
 export const ReportForm: React.FC = () => {
+  const MAX_PHOTO_BYTES = 700 * 1024; // Firestore 1MiB制限を考慮して余裕を持たせる
+  const MAX_WIDTH = 1600;
+  const MAX_HEIGHT = 1600;
   const { id } = useParams<{ id: string }>();
   const isEditMode = !!id;
   const { user } = useAuth();
@@ -19,6 +22,7 @@ export const ReportForm: React.FC = () => {
   const [incidentDate, setIncidentDate] = useState(format(new Date(), 'yyyy-MM-dd'));
   const [siteId, setSiteId] = useState('');
   const [content, setContent] = useState('');
+  const [photoDataUrl, setPhotoDataUrl] = useState('');
   
   const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -41,6 +45,7 @@ export const ReportForm: React.FC = () => {
           setIncidentDate(report.incidentDate);
           setSiteId(report.siteId);
           setContent(report.content);
+          setPhotoDataUrl(report.photoDataUrl || '');
         } else {
           navigate('/reports');
         }
@@ -78,6 +83,7 @@ export const ReportForm: React.FC = () => {
           siteId,
           siteName: site?.name || '',
           content,
+          photoDataUrl,
         });
       } else {
         await reportService.addReport({
@@ -87,6 +93,7 @@ export const ReportForm: React.FC = () => {
           reporterId: user?.id || '',       // reporterとcreatorは同じ情報を入れる
           reporterName: user?.name || '',   
           content,
+          photoDataUrl,
           createdByUserId: user?.id || '',
           createdByUserName: user?.name || '',
         });
@@ -96,6 +103,75 @@ export const ReportForm: React.FC = () => {
     } catch (err: any) {
       setError('保存に失敗しました');
       setIsSubmitting(false);
+    }
+  };
+
+  const loadImage = (file: File): Promise<HTMLImageElement> => {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      img.onload = () => {
+        URL.revokeObjectURL(objectUrl);
+        resolve(img);
+      };
+      img.onerror = () => {
+        URL.revokeObjectURL(objectUrl);
+        reject(new Error('画像の読み込みに失敗しました'));
+      };
+      img.src = objectUrl;
+    });
+  };
+
+  const canvasToDataUrl = (canvas: HTMLCanvasElement, quality: number): string => {
+    return canvas.toDataURL('image/jpeg', quality);
+  };
+
+  const compressImage = async (file: File): Promise<string> => {
+    const img = await loadImage(file);
+    const scale = Math.min(1, MAX_WIDTH / img.width, MAX_HEIGHT / img.height);
+    const width = Math.max(1, Math.floor(img.width * scale));
+    const height = Math.max(1, Math.floor(img.height * scale));
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) throw new Error('画像処理に失敗しました');
+    ctx.drawImage(img, 0, 0, width, height);
+
+    let quality = 0.9;
+    let dataUrl = canvasToDataUrl(canvas, quality);
+    while (dataUrl.length > MAX_PHOTO_BYTES * 1.37 && quality > 0.45) {
+      quality -= 0.1;
+      dataUrl = canvasToDataUrl(canvas, quality);
+    }
+    return dataUrl;
+  };
+
+  const handlePhotoChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) {
+      setPhotoDataUrl('');
+      return;
+    }
+    if (!file.type.startsWith('image/')) {
+      setError('画像ファイルを選択してください');
+      e.target.value = '';
+      return;
+    }
+    setError('');
+    try {
+      const compressedDataUrl = await compressImage(file);
+      if (compressedDataUrl.length > MAX_PHOTO_BYTES * 1.37) {
+        setError('写真サイズが大きすぎます。もう少し近づいて撮影するか、別の写真を選択してください。');
+        setPhotoDataUrl('');
+        e.target.value = '';
+        return;
+      }
+      setPhotoDataUrl(compressedDataUrl);
+    } catch (error) {
+      setError('画像の処理に失敗しました。別の写真でお試しください。');
+      setPhotoDataUrl('');
+      e.target.value = '';
     }
   };
 
@@ -136,6 +212,10 @@ export const ReportForm: React.FC = () => {
       </div>
 
       <form onSubmit={handleSubmit} className="p-6 space-y-8">
+        <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200 text-sm text-yellow-900">
+          必須項目（発生日・現場・内容）は必ず入力してください。状況がわかる写真を添付できる場合は、できるだけ添付をお願いします。
+        </div>
+
         <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 flex justify-between items-center">
           <div className="text-blue-800 font-bold">登録者：</div>
           <div className="text-xl font-bold text-blue-900">{user?.name}</div>
@@ -179,6 +259,26 @@ export const ReportForm: React.FC = () => {
             value={content}
             onChange={(e) => setContent(e.target.value)}
           />
+        </div>
+
+        <div>
+          <label className="block text-gray-800 font-bold mb-2 text-lg">
+            4. 写真添付（任意）
+          </label>
+          <input
+            type="file"
+            accept="image/*"
+            onChange={handlePhotoChange}
+            className="w-full p-3 border-2 border-gray-300 rounded-lg text-base focus:border-blue-500 focus:ring-2 focus:ring-blue-200 outline-none bg-white"
+          />
+          <p className="text-sm text-gray-500 mt-2">
+            危険箇所や状況が伝わる写真があれば添付してください。
+          </p>
+          {photoDataUrl && (
+            <div className="mt-4">
+              <img src={photoDataUrl} alt="添付予定の写真" className="max-h-64 rounded-lg border border-gray-200 object-contain bg-gray-50" />
+            </div>
+          )}
         </div>
 
         {error && (
